@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍔음식점 찾기</title>
+    <style>
+        /* 지도와 화면 구성을 위한 스타일 */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: gray; /* 배경색 설정 */
+        }
+
+        h1 {
+            margin: 20px 0;
+            font-size: 24px; /* 제목 폰트 크기 설정 */
+        }
+
+        /* 지도 컨테이너 스타일 */
+        #map {
+            height: 50vh; /* 지도의 높이를 화면의 50%로 설정 */
+            width: 100%; /* 지도의 너비를 100%로 설정 */
+            max-width: 1600px; /* 지도의 최대 너비 설정 */
+            border: 1px solid #ccc; /* 지도의 경계선 설정 */
+        }
+
+        /* 리스트 컨테이너 스타일 */
+        #places-list {
+            max-width: 1600px;
+            width: 100%;
+            max-height: 300px;
+            overflow-y: auto;
+            background-color: white;
+            padding: 10px;
+            margin-top: 20px;
+        }
+
+        /* 리스트 아이템 스타일 */
+        .place-item {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            cursor: pointer;
+        }
+
+        .place-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* 검색창 스타일 */
+        #search-box {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+            outline: none;
+        }
+
+        /* 뒤로가기 버튼 스타일 */
+        #back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        #back-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>근처 음식점 정보</h1> <!-- 페이지 제목 -->
+
+    <!-- 뒤로가기 버튼 -->
+    <button id="back-button" onclick="history.back()">뒤로가기</button>
+
+    <!-- 검색창 -->
+    <input id="search-box" type="text" placeholder="검색할 장소를 입력하세요..." />
+
+    <!-- 지도 컨테이너 -->
+    <div id="map">지도 로딩 중...</div>
+
+    <!-- 음식점 리스트 컨테이너 -->
+    <div id="places-list">음식점 목록 로딩 중...</div>
+
+    <script>
+        // Google Maps API 로드 및 초기화 함수
+        function initMap() {
+            // 사용자 위치 정보를 가져옴
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const userLocation = {
+                        lat: position.coords.latitude,  // 위도
+                        lng: position.coords.longitude  // 경도
+                    };
+
+                    // 지도 객체 생성
+                    const map = new google.maps.Map(document.getElementById('map'), {
+                        center: userLocation,  // 현 위치를 지도의 중심으로 설정
+                        zoom: 15  // 줌 레벨 설정
+                    });
+
+                    // 현재 위치에 마커 추가
+                    const userMarker = new google.maps.Marker({
+                        position: userLocation,
+                        map: map,
+                        title: 'Your current location',
+                        icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 10,
+                            fillColor: '#4285F4',
+                            fillOpacity: 1,
+                            strokeWeight: 1,
+                            strokeColor: '#ffffff'
+                        }
+                    });
+
+                    // 검색창(SearchBox) 추가
+                    const input = document.getElementById('search-box');
+                    const searchBox = new google.maps.places.SearchBox(input);
+
+                    // 검색창에서 검색된 결과를 처리하는 이벤트 리스너 추가
+                    searchBox.addListener('places_changed', function() {
+                        const places = searchBox.getPlaces();
+
+                        if (places.length === 0) {
+                            return;
+                        }
+
+                        // 검색된 장소에 마커 추가
+                        const bounds = new google.maps.LatLngBounds();
+                        places.forEach(place => {
+                            if (!place.geometry || !place.geometry.location) {
+                                return;
+                            }
+
+                            // 검색된 장소에 마커 생성
+                            createMarker(place);
+
+                            if (place.geometry.viewport) {
+                                bounds.union(place.geometry.viewport);
+                            } else {
+                                bounds.extend(place.geometry.location);
+                            }
+                        });
+
+                        map.fitBounds(bounds);  // 지도 범위를 검색된 장소에 맞춤
+                    });
+
+                    // 음식점 검색 요청 실행 (반경 10km 내)
+                    const service = new google.maps.places.PlacesService(map);
+                    service.nearbySearch({
+                        location: userLocation,
+                        radius: 10000,  // 반경 10km
+                        type: ['restaurant']  // 음식점 검색
+                    }, function(results, status) {
+                        if (status === google.maps.places.PlacesServiceStatus.OK) {
+                            displayPlaces(results);  // 검색된 음식점 리스트 표시
+                            for (let i = 0; i < results.length; i++) {
+                                createMarker(results[i]);  // 검색된 음식점에 마커 추가
+                            }
+                        }
+                    });
+
+                    // 검색된 음식점 리스트 표시 함수
+                    function displayPlaces(places) {
+                        const placesList = document.getElementById('places-list');
+                        placesList.innerHTML = '';  // 기존 리스트 초기화
+
+                        places.forEach(place => {
+                            const listItem = document.createElement('div');
+                            listItem.className = 'place-item';
+                            listItem.textContent = `${place.name} (Rating: ${place.rating || 'N/A'})`;
+                            
+                            // 리스트 클릭 시 해당 음식점으로 지도 이동
+                            listItem.addEventListener('click', function() {
+                                map.setCenter(place.geometry.location);
+                            });
+
+                            placesList.appendChild(listItem);
+                        });
+                    }
+
+                    // 검색된 장소에 마커 추가 함수
+                    function createMarker(place) {
+                        // 마커 설정
+                        const marker = new google.maps.Marker({
+                            map: map,
+                            position: place.geometry.location,  // 장소의 위치에 마커 표시
+                            title: place.name  // 마커에 음식점 이름 표시
+                        });
+
+                        // 정보창(InfoWindow) 생성
+                        const infoWindow = new google.maps.InfoWindow({
+                            content: `<div><strong>${place.name}</strong><br>Rating: ${place.rating || 'N/A'}</div>`
+                        });
+
+                        // 마커 클릭 시 정보창 열기
+                        marker.addListener('click', function() {
+                            infoWindow.open(map, marker);
+                        });
+                    }
+
+                }, function() {
+                    // 위치 정보를 가져오는 데 실패했을 때의 처리
+                    handleLocationError(true);
+                });
+            } else {
+                // 브라우저가 Geolocation을 지원하지 않는 경우의 처리
+                handleLocationError(false);
+            }
+        }
+
+        // 위치 에러 처리 함수
+        function handleLocationError(browserHasGeolocation) {
+            const errorMessage = browserHasGeolocation
+                ? 'Error: The Geolocation service failed.'
+                : 'Error: Your browser doesn\'t support geolocation.';
+            alert(errorMessage);  // 사용자에게 에러 메시지를 알림
+        }
+    </script>
+
+    <!-- Google Maps API와 Places API 불러오기 -->
+    <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAgaitdH5CfXdravO33JIt_LvNkjieIXxQ&libraries=places&callback=initMap">
+    </script>
+</body>
+</html>

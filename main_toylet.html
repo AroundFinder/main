@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nearby Toilet Information</title>
+    <style>
+        /* 지도와 화면 구성을 위한 스타일 */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: gray;
+            
+        }
+
+        h1 {
+            margin: 20px 0;
+            font-display: 10;
+        }
+
+        /* 지도 컨테이너 스타일 */
+        #map {
+            height: 800px; /* 지도의 높이 설정 */
+            width: 100%; /* 지도의 너비를 100%로 설정 */
+            max-width: 1600px; /* 최대 너비 설정 */
+            border: 1px solid #ccc; /* 경계선 설정 */
+        }
+    </style>
+</head>
+<body>
+    <h1>🚻 화장실 정보</h1> <!-- 제목 -->
+
+    <!-- 지도 컨테이너 -->
+    <div id="map">지도 로딩 중...</div>
+
+    <script>
+        // Google Maps API 로드 및 초기화 함수
+        function initMap() {
+            // 사용자 위치 정보를 가져옴
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const userLocation = {
+                        lat: position.coords.latitude,  // 위도
+                        lng: position.coords.longitude  // 경도
+                    };
+
+                    // 지도 객체 생성
+                    const map = new google.maps.Map(document.getElementById('map'), {
+                        center: userLocation,  // 현 위치를 지도의 중심으로 설정
+                        zoom: 18  // 줌 레벨 설정
+                    });
+
+                    // 현재 위치에 마커 추가
+                    const marker = new google.maps.Marker({
+                        position: userLocation,
+                        map: map,
+                        title: 'Your current location'
+                    });
+
+                }, function() {
+                    // 위치 정보를 가져오는 데 실패했을 때의 처리
+                    handleLocationError(true);
+                });
+            } else {
+                // 브라우저가 Geolocation을 지원하지 않는 경우의 처리
+                handleLocationError(false);
+            }
+        }
+
+        // 위치 에러 처리 함수
+        function handleLocationError(browserHasGeolocation) {
+            const errorMessage = browserHasGeolocation
+                ? 'Error: The Geolocation service failed.'
+                : 'Error: Your browser doesn\'t support geolocation.';
+            alert(errorMessage);  // 사용자에게 에러 메시지를 알림
+        }
+    </script>
+
+    <!-- Google Maps API 불러오기 -->
+    <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAgaitdH5CfXdravO33JIt_LvNkjieIXxQ&callback=initMap">
+    </script>
+</body>
+</html>
